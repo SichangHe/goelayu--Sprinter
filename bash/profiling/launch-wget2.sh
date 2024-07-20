@@ -8,7 +8,7 @@
 mkdir -p $2
 site=$1
 echo "site is",$site
-sitedir=`echo $site | sanitize`
+sitedir=$(echo $site | sanitize)
 dir=$2/$sitedir
 mkdir -p $dir
 cmd="wget2 -P$dir --timeout 30 --no-verbose --no-directories --span-hosts \
@@ -20,4 +20,3 @@ $site"
 echo Running cmd $cmd
 eval timeout 15 $cmd >> $2/wget.log 2>&1
 # done < $1
-

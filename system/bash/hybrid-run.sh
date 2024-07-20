@@ -14,16 +14,21 @@
 
 # Example: ./run.sh sites.txt ../../pageshere ../data/output `../data/record/output` "-t 10" 30
 
-parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+parent_path=$(
+    cd "$(dirname "${BASH_SOURCE[0]}")"
+    pwd -P
+)
 DYNRUN=$parent_path/run.sh
 AZPORT=11909
 # LOGFILE=hybrid
 
-crawl_rate(){
-    t=0;
+crawl_rate() {
+    t=0
     while true; do
-        t=$((t + 1));
-        echo -n $t " "; cat $1/static.log  | grep -a "Finished crawling Page" | wc -l ; sleep 1;
+        t=$((t + 1))
+        echo -n $t " "
+        cat $1/static.log | grep -a "Finished crawling Page" | wc -l
+        sleep 1
     done > $1/crawl_rate.log
 }
 
@@ -36,7 +41,7 @@ AZPORT=11909 URLS=1 COPY=0 RUN=opt LOGFILE=$LOGFILE $DYNRUN $sites $2/dynamic $3
 echo "Dynamic run complete. Starting static crawlers"
 
 GOROOT=/w/goelayu/uluyol-sigcomm/go
-WPRDIR=$parent_path/../go/wpr;
+WPRDIR=$parent_path/../go/wpr
 WPRDATA=/w/goelayu/bcrawling/wprdata/
 mkdir -p $3/$LOGFILE/static
 rm -rf $3/$LOGFILE/static/*
@@ -49,13 +54,12 @@ done
 crawl_rate $3/$LOGFILE/static/output/ &
 crawlratepid=$!
 
-
 cd $WPRDIR && GOROOT=$GOROOT time go run src/static/crawler* -az $AZPORT -wpr $WPRDATA -n 1 -v \
--proxy $3/$LOGFILE/static/output/  -pages $3/$LOGFILE/static/urls.txt -azlog $3/$LOGFILE/logs/az.log -sleep 2 &> $3/$LOGFILE/static/output/static.log
+    -proxy $3/$LOGFILE/static/output/ -pages $3/$LOGFILE/static/urls.txt -azlog $3/$LOGFILE/logs/az.log -sleep 2 &> $3/$LOGFILE/static/output/static.log
 
 echo "Static crawlers complete"
 
 ps aux | grep $AZPORT | awk '{print $2}' | xargs kill -SIGINT
-kill $crawlratepid;
+kill $crawlratepid
 
 sleep 2

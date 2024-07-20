@@ -1,12 +1,11 @@
 #! /usr/bin/env bash
 
-# This script stress tests brozzler and captures 
+# This script stress tests brozzler and captures
 # the resource usage
 
 # $3 -> Number of browsers
 # $2 -> Path for storing the benchmarking results files
 # $1-> Path to store rethink and warc outputs
-
 
 BROZZLERDIR="/vault-swift/goelayu/research-ideas/crawling-opt/crawlers/brozzler"
 
@@ -17,62 +16,61 @@ if [ $# -lt 3 ]; then
     $1 -> number of browsers
 EOF
     exit 1
-fi 
+fi
 
 echo Parallizing $3 Chrome browsers
 
 RETHINKDBDIR=$BROZZLERDIR
 
-
 start_cpu_profile() {
-  # rm -r $1/cpu_profile
-  echo "usage,time" > $1/cpu_profile
-  t=1
-  while true; do 
-    u=`cpu-usage-trend`;
-    echo $u,$t >> $1/cpu_profile;
-    t=$((t+1));
-  done
+    # rm -r $1/cpu_profile
+    echo "usage,time" > $1/cpu_profile
+    t=1
+    while true; do
+        u=$(cpu-usage-trend)
+        echo $u,$t >> $1/cpu_profile
+        t=$((t + 1))
+    done
 }
 
-start_nw_profle(){
-  # rm -r $1/nw_profile
-  sudo iftop -t -i ens15f1 < /dev/null > $1/nw_profile
-  nwpid=$!
+start_nw_profle() {
+    # rm -r $1/nw_profile
+    sudo iftop -t -i ens15f1 < /dev/null > $1/nw_profile
+    nwpid=$!
 }
 
-start_disk_profile(){
-  # rm -r $1/disk_profile
-  sudo iostat -d 2 > $1/disk_profile &
-  diskpid=$!
+start_disk_profile() {
+    # rm -r $1/disk_profile
+    sudo iostat -d 2 > $1/disk_profile &
+    diskpid=$!
 }
 
-brozzler_cleanup(){
-  # remove pending chrome and instances
-  pkill chrome
+brozzler_cleanup() {
+    # remove pending chrome and instances
+    pkill chrome
 
-  # clean up pending brozzling instances
-  ps aux | grep brozzler-easy | awk '{print $2}' | xargs kill -9
-  # restart rethinkdb
-  ps aux | grep rethinkdb | awk '{print $2}' | xargs kill -9;
-  rm -rf $RETHINKDBDIR/rethinkdb_store;
-  rethinkdb -d $RETHINKDBDIR/rethinkdb_store &> $RETHINKDBDIR/rethink.log &
-  sleep 1
-}
-
-is_job_finished(){
-  # checks the output file for finished keyword
-  while true; do
-    if grep -q "job .* FINISHED" $1; then
-      return 0
-    fi
+    # clean up pending brozzling instances
+    ps aux | grep brozzler-easy | awk '{print $2}' | xargs kill -9
+    # restart rethinkdb
+    ps aux | grep rethinkdb | awk '{print $2}' | xargs kill -9
+    rm -rf $RETHINKDBDIR/rethinkdb_store
+    rethinkdb -d $RETHINKDBDIR/rethinkdb_store &> $RETHINKDBDIR/rethink.log &
     sleep 1
-  done
+}
+
+is_job_finished() {
+    # checks the output file for finished keyword
+    while true; do
+        if grep -q "job .* FINISHED" $1; then
+            return 0
+        fi
+        sleep 1
+    done
 }
 
 brozzler_cleanup
 
-echo Done cleaning up 
+echo Done cleaning up
 echo Started rethinkdb
 #initilize the output directory
 mkdir -p $2/$3
@@ -82,7 +80,7 @@ rm -rf $1/$3/*
 
 #start cpu profiling
 start_cpu_profile $2/$3 &
-cpupid=$!;
+cpupid=$!
 
 start_nw_profle $2/$3 &
 
@@ -102,7 +100,7 @@ echo Done crawling 20 pages with $3 crawlers
 brozzler_cleanup
 
 echo kill the profiling process $cpupid $nwpid $diskpid
-kill -9 $cpupid;
+kill -9 $cpupid
 # sudo kill -SIGINT $nwpid;
 sudo pkill -SIGINT iftop
-sudo pkill -9 iostat;
+sudo pkill -9 iostat

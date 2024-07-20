@@ -9,10 +9,10 @@
 
 # trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-busy(){
+busy() {
     LAST=1000000
     for i in $(seq 1 $LAST); do
-        a=$((i+1));
+        a=$((i + 1))
     done
 }
 

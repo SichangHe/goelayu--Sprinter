@@ -26,14 +26,14 @@ fi
 
 MAINSCRIPT=../../node/chrome-distributed.js
 
-mkdir -p $2/$3;
-mkdir -p $1/$3;
-rm -rf $2/$3/*;
-rm -rf $1/$3/*;
+mkdir -p $2/$3
+mkdir -p $1/$3
+rm -rf $2/$3/*
+rm -rf $1/$3/*
 
 echo 'Starting monitoring tools'
 ./sys-usage-track.sh $2/$3 &
-sysupid=$!;
+sysupid=$!
 
 if [[ $5 == "1" ]]; then
     echo 'No proxy mode enabled'
@@ -43,8 +43,6 @@ else
     time node $MAINSCRIPT -o $1/$3 -c $3 -u $4 -t 10 -n &> $1/$3/node.out
 fi
 
-
-
 # kill the resource usage scripts
 echo "Sending ctrl-c to the monitoring tools" $sysupid
-kill -SIGUSR1 $sysupid;
+kill -SIGUSR1 $sysupid

@@ -11,63 +11,63 @@ const TaskSummary = require("lighthouse/lighthouse-core/lib/tracehouse/task-summ
 const netParser = require("../lib/network");
 
 // Group tasks by category
-var getExecutionTimingsByGroup = function (trace) {
-  var tasks = parseTrace(trace);
-  /** @type {Map<TaskGroupIds, number>} */
-  const result = new Map();
+var getExecutionTimingsByGroup = function(trace) {
+    var tasks = parseTrace(trace);
+    /** @type {Map<TaskGroupIds, number>} */
+    const result = new Map();
 
-  for (const task of tasks) {
-    const originalTime = result.get(task.group.id) || 0;
-    result.set(task.group.id, originalTime + task.selfTime);
-  }
+    for (const task of tasks) {
+        const originalTime = result.get(task.group.id) || 0;
+        result.set(task.group.id, originalTime + task.selfTime);
+    }
 
-  return result;
+    return result;
 };
 
-var getJSURLs = function (network) {
-  const networkRecords = netParser.parseNetworkLogs(network);
-  return new Set(
-    networkRecords
-      .filter((record) => {
-        return (
-          record.type &&
-          record.type.indexOf("script") !== -1 &&
-          record.status == 200
-        );
-      })
-      .map((record) => record.url)
-  );
+var getJSURLs = function(network) {
+    const networkRecords = netParser.parseNetworkLogs(network);
+    return new Set(
+        networkRecords
+            .filter((record) => {
+                return (
+                    record.type &&
+                    record.type.indexOf("script") !== -1 &&
+                    record.status == 200
+                );
+            })
+            .map((record) => record.url)
+    );
 };
 
 function getExecutionTimingsByURL(trace, network) {
-  var tasks = parseTrace(trace);
-  var jsURLs = getJSURLs(network);
-  /** @type {Map<string, Record<string, number>>} */
-  const result = new Map();
+    var tasks = parseTrace(trace);
+    var jsURLs = getJSURLs(network);
+    /** @type {Map<string, Record<string, number>>} */
+    const result = new Map();
 
-  for (const task of tasks) {
-    const attributableURL = TaskSummary.getAttributableURLForTask(task, jsURLs);
-    const timingByGroupId = result.get(attributableURL) || {};
-    const originalTime = timingByGroupId[task.group.id] || 0;
-    timingByGroupId[task.group.id] = originalTime + task.selfTime;
-    result.set(attributableURL, timingByGroupId);
-  }
+    for (const task of tasks) {
+        const attributableURL = TaskSummary.getAttributableURLForTask(task, jsURLs);
+        const timingByGroupId = result.get(attributableURL) || {};
+        const originalTime = timingByGroupId[task.group.id] || 0;
+        timingByGroupId[task.group.id] = originalTime + task.selfTime;
+        result.set(attributableURL, timingByGroupId);
+    }
 
-  return result;
+    return result;
 }
 
 function parseTrace(trace) {
-  const { mainThreadEvents, frames, timestamps } =
-    TraceProcessor.processTrace(trace);
-  const tasks = MainThreadTasks.getMainThreadTasks(
-    mainThreadEvents,
-    frames,
-    timestamps.traceEnd
-  );
-  return tasks;
+    const { mainThreadEvents, frames, timestamps } =
+        TraceProcessor.processTrace(trace);
+    const tasks = MainThreadTasks.getMainThreadTasks(
+        mainThreadEvents,
+        frames,
+        timestamps.traceEnd
+    );
+    return tasks;
 }
 
 module.exports = {
-  getExecutionTimingsByGroup,
-  getExecutionTimingsByURL,
+    getExecutionTimingsByGroup,
+    getExecutionTimingsByURL,
 };

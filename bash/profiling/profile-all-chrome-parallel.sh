@@ -1,14 +1,12 @@
 #! /usr/bin/env bash
 
-# This script runs various Chrome browsers in parallel and 
+# This script runs various Chrome browsers in parallel and
 # simulatenously captures various performance metrics
-# such as CPU utilization, network usage and disk usage. 
+# such as CPU utilization, network usage and disk usage.
 
 # $1 -> path for storing the output files
 # $2 -> Path for storing the per job completion times
 # $3 -> Number of browsers to launch in parallel
-
-
 
 if [ $# -lt 3 ]; then
     echo "insufficient arguments provided"
@@ -20,7 +18,7 @@ if [ $# -lt 3 ]; then
     
 EOF
     exit 1
-fi 
+fi
 
 echo Parallizing $3 Chrome browsers
 
@@ -29,72 +27,72 @@ top=0
 bottom=0
 
 start_cpu_profile() {
-  # rm -r $1/cpu_profile
-  echo "usage,time" > $1/cpu_profile
-  t=1
-  while true; do 
-    u=`cpu-usage-trend`;
-    echo $u,$t >> $1/cpu_profile;
-    t=$((t+1));
-  done
+    # rm -r $1/cpu_profile
+    echo "usage,time" > $1/cpu_profile
+    t=1
+    while true; do
+        u=$(cpu-usage-trend)
+        echo $u,$t >> $1/cpu_profile
+        t=$((t + 1))
+    done
 }
 
-start_nw_profle(){
-  # rm -r $1/nw_profile
-  sudo iftop -t -i ens15f1 < /dev/null > $1/nw_profile
-  nwpid=$!
+start_nw_profle() {
+    # rm -r $1/nw_profile
+    sudo iftop -t -i ens15f1 < /dev/null > $1/nw_profile
+    nwpid=$!
 }
 
-start_disk_profile(){
-  # rm -r $1/disk_profile
-  sudo iostat -d 2 > $1/disk_profile &
-  diskpid=$!
+start_disk_profile() {
+    # rm -r $1/disk_profile
+    sudo iostat -d 2 > $1/disk_profile &
+    diskpid=$!
 }
 
-init_range(){
-  if [[ $1 == 5 ]]; then 
-    top=50
-    bottom=50
-  elif [[ $1 == 10 ]]; then
-    top=10
-    bottom=10
-    next=10
-  elif [[ $1 == 15 ]]; then
-    top=7
-    bottom=7
-  fi
-}
-
-update_range(){
-  if [[ $1 == 5 ]]; then 
-    top=20
-    bottom=20
-  elif [[ $1 == 10 ]]; then
-    top=$((top+next))
-    # bottom=$((bottom+next))
-    next=$((-next))
-  elif [[ $1 == 15 ]]; then
-    if [[ $top == 7 ]]; then
-      top=14
-      bottom=7
-    elif [[ $top == 14 ]]; then
-      top=20
-      bottom=6
-    elif [[ $top == 20 ]]; then
-      top=7
-      bottom=7
+init_range() {
+    if [[ $1 == 5 ]]; then
+        top=50
+        bottom=50
+    elif [[ $1 == 10 ]]; then
+        top=10
+        bottom=10
+        next=10
+    elif [[ $1 == 15 ]]; then
+        top=7
+        bottom=7
     fi
-  fi
 }
 
-update_range2(){
-  factor=`echo $NPAGES $1 | awk '{print int($1/$2)}'`
-  top=`echo $top $factor | awk '{print $1+$2}'`
-  bottom=$factor
+update_range() {
+    if [[ $1 == 5 ]]; then
+        top=20
+        bottom=20
+    elif [[ $1 == 10 ]]; then
+        top=$((top + next))
+        # bottom=$((bottom+next))
+        next=$((-next))
+    elif [[ $1 == 15 ]]; then
+        if [[ $top == 7 ]]; then
+            top=14
+            bottom=7
+        elif [[ $top == 14 ]]; then
+            top=20
+            bottom=6
+        elif [[ $top == 20 ]]; then
+            top=7
+            bottom=7
+        fi
+    fi
 }
 
-create_tempfile(){
-  cat ../pages/alexa_1000 | head -n $NPAGES | shuf > tmpfile
+update_range2() {
+    factor=$(echo $NPAGES $1 | awk '{print int($1/$2)}')
+    top=$(echo $top $factor | awk '{print $1+$2}')
+    bottom=$factor
+}
+
+create_tempfile() {
+    cat ../pages/alexa_1000 | head -n $NPAGES | shuf > tmpfile
 }
 
 # if [[ ! -d $2 ]]; then
@@ -108,7 +106,7 @@ create_tempfile(){
 # fi
 
 # clean up directories
-# rm -r $2/*; 
+# rm -r $2/*;
 # rm -r $3/*;
 
 # mk new directories for the number of parallel jobs
@@ -116,18 +114,18 @@ create_tempfile(){
 # clean any residual chrome instances
 pkill chrome
 
-mkdir -p $1/$3;
-mkdir -p $2/$3;
+mkdir -p $1/$3
+mkdir -p $2/$3
 
 # clean up directories
-rm -r $1/$3/*; 
-rm -r $2/$3/*;
+rm -r $1/$3/*
+rm -r $2/$3/*
 
-start_port=9222;
+start_port=9222
 
 #start cpu profiling
 start_cpu_profile $2/$3 &
-cpupid=$!;
+cpupid=$!
 
 start_nw_profle $2/$3 &
 
@@ -137,15 +135,15 @@ start_disk_profile $2/$3
 create_tempfile
 # ./profile-cpu-chrome.sh $2/1/ $1/1 1 &
 for i in $(eval echo {1..${3}}); do
-  cur_port=$((start_port+i));
-  update_range2 $3 
-  echo "./profile-cpu-chrome.sh ${1}/${3}/${i} ${2}/${3}/${i}.time 1 $cur_port $top $bottom";
+    cur_port=$((start_port + i))
+    update_range2 $3
+    echo "./profile-cpu-chrome.sh ${1}/${3}/${i} ${2}/${3}/${i}.time 1 $cur_port $top $bottom"
 done | parallel
 
 echo kill the profiling process $cpupid $nwpid $diskpid
-kill -9 $cpupid;
+kill -9 $cpupid
 # sudo kill -SIGINT $nwpid;
 sudo pkill -SIGINT iftop
-sudo pkill -9 iostat;
+sudo pkill -9 iostat
 
 rm -r tmpfile

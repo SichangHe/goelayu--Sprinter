@@ -9,41 +9,41 @@ const fs = require("fs");
 const program = require("commander");
 
 program
-  .version("0.0.1")
-  .option("-p, --pages [pages]", "The pages file")
-  .option("-d, --dir [dir]", "The directory which contains the warc files")
-  .parse(process.argv);
+    .version("0.0.1")
+    .option("-p, --pages [pages]", "The pages file")
+    .option("-d, --dir [dir]", "The directory which contains the warc files")
+    .parse(process.argv);
 
 if (!program.pages || !program.dir) {
-  console.log("Please specify a source and destination file");
-  process.exit(1);
+    console.log("Please specify a source and destination file");
+    process.exit(1);
 }
 
-var extractOkCDX = function (cdxfile) {
-  var res = [];
-  var content = fs.readFileSync(cdxfile, "utf8");
-  content.split("\n").forEach(function (line) {
-    if (line.length == 0) return;
-    var entries = line.split(" ");
-    if (entries.length && entries[4] == "200") {
-      res.push(entries[0]);
-    }
-  });
-  return res;
+var extractOkCDX = function(cdxfile) {
+    var res = [];
+    var content = fs.readFileSync(cdxfile, "utf8");
+    content.split("\n").forEach(function(line) {
+        if (line.length == 0) return;
+        var entries = line.split(" ");
+        if (entries.length && entries[4] == "200") {
+            res.push(entries[0]);
+        }
+    });
+    return res;
 };
 
-var listPages = function () {
-  var pageFile = fs.readFileSync(program.pages, "utf8");
-  var pages = pageFile.split("\n").filter((f) => f);
-  for (var p of pages) {
-    try {
-      var cdxFile = `${program.dir}/${p}/warc.cdx`;
-      var urls = extractOkCDX(cdxFile);
-      console.log(p, urls.length);
-    } catch (e) {
-      //supress the error
+var listPages = function() {
+    var pageFile = fs.readFileSync(program.pages, "utf8");
+    var pages = pageFile.split("\n").filter((f) => f);
+    for (var p of pages) {
+        try {
+            var cdxFile = `${program.dir}/${p}/warc.cdx`;
+            var urls = extractOkCDX(cdxFile);
+            console.log(p, urls.length);
+        } catch (e) {
+            //supress the error
+        }
     }
-  }
 };
 
 listPages();

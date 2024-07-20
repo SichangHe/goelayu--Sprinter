@@ -22,134 +22,134 @@ const netParser = require("../lib/network.js");
 const glob = require("glob");
 
 program
-  .version("0.0.1")
-  .option("--static [value]", "The source file")
-  .option("--dynamic [value]", "The dynamic file")
-  .option("-d, --destination [destination]", "The destination file(s)")
-  .option("--match-type [matchType]", "The type of match to perform")
-  .option("-v, --verbose", "Verbose output")
-  .parse(process.argv);
+    .version("0.0.1")
+    .option("--static [value]", "The source file")
+    .option("--dynamic [value]", "The dynamic file")
+    .option("-d, --destination [destination]", "The destination file(s)")
+    .option("--match-type [matchType]", "The type of match to perform")
+    .option("-v, --verbose", "Verbose output")
+    .parse(process.argv);
 
 if (!program.static || !program.dynamic) {
-  console.log("Please specify a source and destination file");
-  process.exit(1);
+    console.log("Please specify a source and destination file");
+    process.exit(1);
 }
 
 
-var ignoreUrl = function (n) {
-  var type = n.type;
-  return (
-    n.request.method != "GET" ||
-    n.url.indexOf("data") == 0 ||
-    !n.type ||
-    !n.size ||
-    n.response.status != 200
-  );
+var ignoreUrl = function(n) {
+    var type = n.type;
+    return (
+        n.request.method != "GET" ||
+        n.url.indexOf("data") == 0 ||
+        !n.type ||
+        !n.size ||
+        n.response.status != 200
+    );
 };
 
-var matchURLs = function (source, destination, type) {
-  if (type == 0) return source == destination;
-  else if (type == 1) return source.split("?")[0] == destination.split("?")[0];
+var matchURLs = function(source, destination, type) {
+    if (type == 0) return source == destination;
+    else if (type == 1) return source.split("?")[0] == destination.split("?")[0];
 };
 
-var combDest = function () {
-  var destinationLogs = [],
-    destinationURLs = [];
-  fs.readFileSync(program.destination, "utf8")
-    .split("\n")
-    .filter((f) => f)
-    .forEach(function (file) {
-      var destLog = netParser.parseNetworkLogs(
-        JSON.parse(fs.readFileSync(`${file}/dynamic/network.log`, "utf8"))
-      );
-      destinationLogs = destinationLogs.concat(destLog);
+var combDest = function() {
+    var destinationLogs = [],
+        destinationURLs = [];
+    fs.readFileSync(program.destination, "utf8")
+        .split("\n")
+        .filter((f) => f)
+        .forEach(function(file) {
+            var destLog = netParser.parseNetworkLogs(
+                JSON.parse(fs.readFileSync(`${file}/dynamic/network.log`, "utf8"))
+            );
+            destinationLogs = destinationLogs.concat(destLog);
+        });
+    for (var n of destinationLogs) {
+        if (!ignoreUrl(n)) {
+            destinationURLs.push(n.url);
+        }
+    }
+
+    return destinationURLs;
+};
+
+var _sum = function(a, b) {
+    return a + b;
+}
+
+var getOrigMissing = function() {
+    // read the source page's static and dynamic fetches
+    var static = fs.readFileSync(glob.sync(program.static)[0], "utf8");
+    var dynamic = fs.readFileSync(
+        program.dynamic,
+        "utf8"
+    );
+
+    var staticURLs = [],
+        dynamicURLs = [];
+
+    //parse each network log separetely
+    static.split("\n").forEach(function(line, i) {
+        if (i > 0) {
+            var url = line.split(" ")[0];
+            staticURLs.push(url);
+        }
     });
-  for (var n of destinationLogs) {
-    if (!ignoreUrl(n)) {
-      destinationURLs.push(n.url);
-    }
-  }
+    // remove undefined URLs and decode URI
+    staticURLs = staticURLs.filter((f) => f).map((m) => decodeURIComponent(m));
 
-  return destinationURLs;
+    var dynParsed = netParser.parseNetworkLogs(JSON.parse(dynamic));
+    for (var n of dynParsed) {
+        if (!ignoreUrl(n)) {
+            dynamicURLs.push(n);
+        }
+    }
+    // compare the two lists and return the missing resources
+    var missing = [], missingSize = 0, totalSize = 0;
+    dynamicURLs.forEach(function(n) {
+        n.size && (totalSize += n.size);
+        if (!staticURLs.some((s) => matchURLs(s, n.url, program.matchType))) {
+            program.verbose && console.log(`[dyn-stat] missing ${n.url} of size ${n.size}`);
+            missing.push(n.url);
+            n.size && (missingSize += n.size);
+        } else if (program.verbose)
+            console.log(`[dyn-stat]found ${n.url} in static`);
+    });
+
+    //print the resources in static that are not in dynamic
+    var notRetrieved = [];
+    // staticURLs.forEach(function (url) {
+    //   if (!dynamicURLs.some((d) => matchURLs(d, url, program.matchType))) {
+    //     console.log(`not retrieved ${url}`);
+    //     // notRetrieved.push(url);
+    //     // } else console.log(`found ${url} in dynamic, not adding to notRetrieved list`);
+    //   }
+    // });
+
+    console.log(
+        `[${program.dynamic}] dynamic: ${dynamicURLs.length} static: ${staticURLs.length} missing: ${missing.length}`
+    );
+    console.log(`[${program.dynamic}] dynamic size: ${totalSize} missing size: ${missingSize}`);
+    return missing;
 };
 
-var _sum = function (a, b) {
-  return a + b;
-}
+var retrieveMissing = function(missing) {
+    var destinationURLs = combDest();
 
-var getOrigMissing = function () {
-  // read the source page's static and dynamic fetches
-  var static = fs.readFileSync(glob.sync(program.static)[0], "utf8");
-  var dynamic = fs.readFileSync(
-    program.dynamic,
-    "utf8"
-  );
+    var missingResources = [];
+    missing.forEach(function(url) {
+        if (!destinationURLs.some((s) => matchURLs(s, url, program.matchType))) {
+            missingResources.push(url);
+        }
+        else if (program.verbose)
+            console.log(`found ${url} in destination, not adding to missing list`);
+    });
 
-  var staticURLs = [],
-    dynamicURLs = [];
-
-  //parse each network log separetely
-  static.split("\n").forEach(function (line,i) {
-    if (i>0) {
-      var url = line.split(" ")[0];
-      staticURLs.push(url);
-    }
-  });
-  // remove undefined URLs and decode URI
-  staticURLs = staticURLs.filter((f) => f).map((m) => decodeURIComponent(m));
-
-  var dynParsed = netParser.parseNetworkLogs(JSON.parse(dynamic));
-  for (var n of dynParsed) {
-    if (!ignoreUrl(n)) {
-      dynamicURLs.push(n);
-    }
-  }
-  // compare the two lists and return the missing resources
-  var missing = [], missingSize = 0, totalSize = 0;
-  dynamicURLs.forEach(function (n) {
-    n.size && (totalSize += n.size);
-    if (!staticURLs.some((s) => matchURLs(s, n.url, program.matchType))) {
-      program.verbose && console.log(`[dyn-stat] missing ${n.url} of size ${n.size}`);
-      missing.push(n.url);
-      n.size && (missingSize += n.size);
-    } else if (program.verbose)
-      console.log(`[dyn-stat]found ${n.url} in static`);
-  });
-
-  //print the resources in static that are not in dynamic
-  var notRetrieved = [];
-  // staticURLs.forEach(function (url) {
-  //   if (!dynamicURLs.some((d) => matchURLs(d, url, program.matchType))) {
-  //     console.log(`not retrieved ${url}`);
-  //     // notRetrieved.push(url);
-  //     // } else console.log(`found ${url} in dynamic, not adding to notRetrieved list`);
-  //   }
-  // });
-
-  console.log(
-    `[${program.dynamic}] dynamic: ${dynamicURLs.length} static: ${staticURLs.length} missing: ${missing.length}`
-  );
-  console.log(`[${program.dynamic}] dynamic size: ${totalSize} missing size: ${missingSize}`);
-  return missing;
-};
-
-var retrieveMissing = function (missing) {
-  var destinationURLs = combDest();
-
-  var missingResources = [];
-  missing.forEach(function (url) {
-    if (!destinationURLs.some((s) => matchURLs(s, url, program.matchType))) {
-      missingResources.push(url);
-    }
-    else if (program.verbose)
-      console.log(`found ${url} in destination, not adding to missing list`);
-  });
-
-  // console.log(
-  //   `destination: ${destinationURLs.length} missing: ${missing.length} not retrieved: ${missingResources.length}`
-  // );
-  console.log(missing.length, missingResources.length);
-  // console.log(missingResources);
+    // console.log(
+    //   `destination: ${destinationURLs.length} missing: ${missing.length} not retrieved: ${missingResources.length}`
+    // );
+    console.log(missing.length, missingResources.length);
+    // console.log(missingResources);
 };
 
 var missing = getOrigMissing();

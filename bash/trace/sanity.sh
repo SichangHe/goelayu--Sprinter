@@ -8,10 +8,10 @@
 sizerecord=$(du -sh "$1" | cut -f1)
 sizeoutput=$(du -sh "$2" | cut -f1)
 
-tmpfile=`mktemp`
-getstatuscodedist(){
+tmpfile=$(mktemp)
+getstatuscodedist() {
     find $1 -iname network.json | while read i; do
-        cat $i | jq -r '.[]["Network.responseReceived"].response.status' ;
+        cat $i | jq -r '.[]["Network.responseReceived"].response.status'
     done | grep -v null > $2
     sort -n $2 | uniq -c | sort -n | sponge $2
 }

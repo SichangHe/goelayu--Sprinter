@@ -20,13 +20,13 @@ numpages=$3
 outputdir=$(dirname $0)/../pages/evaltrace/$3
 mkdir -p $outputdir
 
-geturls(){
+geturls() {
     echo "Getting urls for $1"
     url=$1
     basedir=$(dirname $0)
     scriptpath=$basedir/../pyutils/page_finder_long.py
     timeout 80s python3 $scriptpath http://$url $2 $tmpdir/${url}.txt &>> $tmpdir/${url}.log
-    
+
     # check if 100
     numlines=$(wc -l $tmpdir/${url}.txt | cut -d' ' -f1)
     if [ $numlines -eq $2 ]; then
@@ -35,7 +35,6 @@ geturls(){
         echo $url >> $outputdir/urls.txt
     fi
 }
-
 
 # read seed file in batches of 30
 
@@ -53,5 +52,3 @@ done < $1
 # cleanup
 
 # rm -rf $tmpdir
-
-

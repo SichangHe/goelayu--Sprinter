@@ -16,163 +16,162 @@ const child_process = require("child_process");
 const https = require("https");
 
 program
-  .option("-p, --port <port>", "Port to listen on", 3000)
-  .option(
-    "-c, --concurrency <concurrency>",
-    "Number of proxies to use",
-    parseInt
-  )
-  .option("--azport <azport>", "Port to use for az server", 1234)
-  .option("-o, --output <output>", "Output directory", "output")
-  .option("--proxy <proxy>", "Proxy to use", "")
-  .option("--timeout <timeout>", "Timeout in seconds", 10)
-  .parse(process.argv);
+    .option("-p, --port <port>", "Port to listen on", 3000)
+    .option(
+        "-c, --concurrency <concurrency>",
+        "Number of proxies to use",
+        parseInt
+    )
+    .option("--azport <azport>", "Port to use for az server", 1234)
+    .option("-o, --output <output>", "Output directory", "output")
+    .option("--proxy <proxy>", "Proxy to use", "")
+    .option("--timeout <timeout>", "Timeout in seconds", 10)
+    .parse(process.argv);
 
 var genBrowserArgs = (proxies) => {
-  var args = [],
-    template = {
-      executablePath: "/usr/bin/google-chrome-stable",
-      ignoreHTTPSErrors: true,
-      headless: program.testing ? false : true,
-      args: [
-        "--ignore-certificate-errors",
-        "--ignore-certificate-errors-spki-list=PhrPvGIaAMmd29hj8BCZOq096yj7uMpRNHpn5PDxI6I",
-        "--disable-web-security",
-        "--disable-features=IsolateOrigins,site-per-process,CrossSiteDocumentBlockingAlways,CrossSiteDocumentBlockingIfIsolating",
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        // "--blink-settings=scriptEnabled=false",
-      ],
-    };
-  // program.testing && template.args.push("--auto-open-devtools-for-tabs");
-  for (var i = 0; i < proxies.length; i++) {
-    var proxy = proxies[i];
-    var proxyFlags = [
-      `--host-resolver-rules=MAP *:80 127.0.0.1:${proxy.http_port},MAP *:443 127.0.0.1:${proxy.https_port},EXCLUDE localhost`,
-      // `--proxy-server=http=https://127.0.0.1:${proxy.https_port}`,
-    ];
-    var browserArgs = Object.assign({}, template);
-    browserArgs.args = browserArgs.args.concat(proxyFlags);
-    args.push(browserArgs);
-  }
-  // console.log(args)
-  return args;
+    var args = [],
+        template = {
+            executablePath: "/usr/bin/google-chrome-stable",
+            ignoreHTTPSErrors: true,
+            headless: program.testing ? false : true,
+            args: [
+                "--ignore-certificate-errors",
+                "--ignore-certificate-errors-spki-list=PhrPvGIaAMmd29hj8BCZOq096yj7uMpRNHpn5PDxI6I",
+                "--disable-web-security",
+                "--disable-features=IsolateOrigins,site-per-process,CrossSiteDocumentBlockingAlways,CrossSiteDocumentBlockingIfIsolating",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                // "--blink-settings=scriptEnabled=false",
+            ],
+        };
+    // program.testing && template.args.push("--auto-open-devtools-for-tabs");
+    for (var i = 0; i < proxies.length; i++) {
+        var proxy = proxies[i];
+        var proxyFlags = [
+            `--host-resolver-rules=MAP *:80 127.0.0.1:${proxy.http_port},MAP *:443 127.0.0.1:${proxy.https_port},EXCLUDE localhost`,
+            // `--proxy-server=http=https://127.0.0.1:${proxy.https_port}`,
+        ];
+        var browserArgs = Object.assign({}, template);
+        browserArgs.args = browserArgs.args.concat(proxyFlags);
+        args.push(browserArgs);
+    }
+    // console.log(args)
+    return args;
 };
 
 var bashSanitize = (str) => {
-  cmd = "echo '" + str + "' | sanitize";
-  return child_process.execSync(cmd, { encoding: "utf8" }).trim();
+    cmd = "echo '" + str + "' | sanitize";
+    return child_process.execSync(cmd, { encoding: "utf8" }).trim();
 };
 
 function httpPromise(url) {
-  return new Promise((resolve, reject) => {
-    http
-      .get(url, (resp) => {
-        resolve(resp);
-      })
-      .on("error", (err) => {
-        reject(err);
-      });
-  });
+    return new Promise((resolve, reject) => {
+        http
+            .get(url, (resp) => {
+                resolve(resp);
+            })
+            .on("error", (err) => {
+                reject(err);
+            });
+    });
 }
 
 function httpsPromise(url) {
-  return new Promise((resolve, reject) => {
-    https
-      .get(url, (resp) => {
-        resolve(resp);
-      })
-      .on("error", (err) => {
-        reject(err);
-      });
-  });
+    return new Promise((resolve, reject) => {
+        https
+            .get(url, (resp) => {
+                resolve(resp);
+            })
+            .on("error", (err) => {
+                reject(err);
+            });
+    });
 }
 
 async function setupBrowserWithProxies() {
-  var opts = {
-    concurrency: Cluster.CONCURRENCY_BROWSER,
-    maxConcurrency: program.concurrency,
-    monitor: program.monitor,
-    timeout: program.timeout * 1000 * 10,
-  };
+    var opts = {
+        concurrency: Cluster.CONCURRENCY_BROWSER,
+        maxConcurrency: program.concurrency,
+        monitor: program.monitor,
+        timeout: program.timeout * 1000 * 10,
+    };
 
-  console.log("Initializing proxies...");
-  var proxyManager = new Proxy.ProxyManager(
-    program.concurrency,
-    `${program.output}/logs`,
-    "replay",
-    program.enableOPT,
-    0
-  );
-  await proxyManager.createProxies();
-  proxies = proxyManager.getAll();
-
-  opts.perBrowserOptions = genBrowserArgs(proxies);
-
-  console.log("Initializing cluster...");
-
-  const cluster = await Cluster.launch(opts);
-
-  cluster.task(async ({ page, data: url }) => {
-    console.log(`Loading page for url ${url}`);
-    var sanurl = bashSanitize(url);
-    var outputDir = `${program.output}/output/${sanurl}`;
-
-    var args = page.browser().process().spawnargs;
-    var pa = args
-      .find((e) => e.includes("resolver-rules"))
-      .split(":")[4]
-      .split(",")[0];
-
-    console.log("updating proxy path");
-    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-
-    var hr = await httpPromise(
-      `http://127.0.0.1:${pa - 1000}/update-archive-path?${
-        program.proxy
-      }/${sanurl}.wprgo`
+    console.log("Initializing proxies...");
+    var proxyManager = new Proxy.ProxyManager(
+        program.concurrency,
+        `${program.output}/logs`,
+        "replay",
+        program.enableOPT,
+        0
     );
-    var hsr = await httpsPromise(
-      `https://127.0.0.1:${pa}/update-shared-object`
-    );
+    await proxyManager.createProxies();
+    proxies = proxyManager.getAll();
 
-    console.log(
-      `Updated proxy data path to ${sanurl}.wprgo: ${hr.statusCode} ${hsr.statusCode}`
-    );
+    opts.perBrowserOptions = genBrowserArgs(proxies);
 
-    await page.goto(url, {
-      waitUntil: "networkidle0",
-      timeout: program.timeout * 1000,
+    console.log("Initializing cluster...");
+
+    const cluster = await Cluster.launch(opts);
+
+    cluster.task(async ({ page, data: url }) => {
+        console.log(`Loading page for url ${url}`);
+        var sanurl = bashSanitize(url);
+        var outputDir = `${program.output}/output/${sanurl}`;
+
+        var args = page.browser().process().spawnargs;
+        var pa = args
+            .find((e) => e.includes("resolver-rules"))
+            .split(":")[4]
+            .split(",")[0];
+
+        console.log("updating proxy path");
+        process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+
+        var hr = await httpPromise(
+            `http://127.0.0.1:${pa - 1000}/update-archive-path?${program.proxy
+            }/${sanurl}.wprgo`
+        );
+        var hsr = await httpsPromise(
+            `https://127.0.0.1:${pa}/update-shared-object`
+        );
+
+        console.log(
+            `Updated proxy data path to ${sanurl}.wprgo: ${hr.statusCode} ${hsr.statusCode}`
+        );
+
+        await page.goto(url, {
+            waitUntil: "networkidle0",
+            timeout: program.timeout * 1000,
+        });
+        console.log(`Page for url ${url} loaded at ${new Date()}`);
     });
-    console.log(`Page for url ${url} loaded at ${new Date()}`);
-  });
 
-  cluster.on("taskerror", (err, data) => {
-    console.log(`Error crawling ${data}: ${err.message}`);
-  });
+    cluster.on("taskerror", (err, data) => {
+        console.log(`Error crawling ${data}: ${err.message}`);
+    });
 
-  return [cluster, proxyManager];
+    return [cluster, proxyManager];
 }
 
 async function main() {
-  const [cluster, pm] = await setupBrowserWithProxies();
-  var pagesload = 0;
-  const server = http.createServer(async (req, res) => {
-    var url = req.url.slice(1);
-    console.log(`Received request for ${url}`);
-    console.log(`Pages loaded: ${++pagesload}`);
-    cluster.queue(url);
-    res.end("ok");
-  });
-  process.on("SIGINT", async () => {
-    console.log("Shutting down...");
-    await cluster.idle();
-    await cluster.close();
-    pm.stopAll();
-    process.exit(0);
-  });
-  console.log("listening on port " + program.port);
-  server.listen(program.port);
+    const [cluster, pm] = await setupBrowserWithProxies();
+    var pagesload = 0;
+    const server = http.createServer(async (req, res) => {
+        var url = req.url.slice(1);
+        console.log(`Received request for ${url}`);
+        console.log(`Pages loaded: ${++pagesload}`);
+        cluster.queue(url);
+        res.end("ok");
+    });
+    process.on("SIGINT", async () => {
+        console.log("Shutting down...");
+        await cluster.idle();
+        await cluster.close();
+        pm.stopAll();
+        process.exit(0);
+    });
+    console.log("listening on port " + program.port);
+    server.listen(program.port);
 }
 
 main();

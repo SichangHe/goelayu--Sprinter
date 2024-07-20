@@ -15,6 +15,7 @@ import StringIO
 import urlparse
 from collections import OrderedDict
 
+
 def get_scriptid_from_stack_trace(stack):
     if len(stack['callFrames']) == 0:
         return None
@@ -24,6 +25,7 @@ def get_scriptid_from_stack_trace(stack):
             return f['scriptId']
 
     return f['scriptId']
+
 
 def handle_request_response(method, params):
     requestId = params['requestId']
@@ -64,9 +66,12 @@ def handle_request_response(method, params):
 
             if response is not None:
                 resourceHeaders.append(OrderedDict([
-                    ('timestamp', resource_requests[requestId][i - 1]['wallTime']),
-                    ('method', resource_requests[requestId][i - 1]['request']['method']),
-                    ('status', (str(response['status']) + ' ' + response['statusText']).strip()),
+                    ('timestamp',
+                     resource_requests[requestId][i - 1]['wallTime']),
+                    ('method', resource_requests[requestId]
+                     [i - 1]['request']['method']),
+                    ('status', (str(response['status']) +
+                     ' ' + response['statusText']).strip()),
                     ('url', response['url'].strip()),
                     ('request', None),
                     ('response', None)
@@ -76,7 +81,8 @@ def handle_request_response(method, params):
                     resourceHeaders[-1]['data'] = None
 
                     if 'postData' in resource_requests[requestId][i - 1]['request']:
-                        resourceHeaders[-1]['data'] = resource_requests[requestId][i - 1]['request']['postData']
+                        resourceHeaders[-1]['data'] = resource_requests[requestId][i -
+                                                                                   1]['request']['postData']
 
                 if 'requestHeaders' in response:
                     resourceHeaders[-1]['request'] = {}
@@ -106,7 +112,8 @@ def handle_request_response(method, params):
         initiator = resource_requests[requestId][0]['initiator']
 
         if initiator['type'].strip().lower() == 'script':
-            initiator_script_id = get_scriptid_from_stack_trace(initiator['stack'])
+            initiator_script_id = get_scriptid_from_stack_trace(
+                initiator['stack'])
 
         inclusion_tree_node = OrderedDict([
             ('type', resourceType),
@@ -116,7 +123,8 @@ def handle_request_response(method, params):
         ])
 
         if resourceType == 'document':
-            inclusion_tree[('document', frameId, loaderId)] = inclusion_tree_node
+            inclusion_tree[('document', frameId, loaderId)
+                           ] = inclusion_tree_node
 
             if frameId not in frames:
                 frames[frameId] = {}
@@ -127,19 +135,23 @@ def handle_request_response(method, params):
             frames[frameId]['loaderId'] = loaderId
         else:
             if resourceType == 'script':
-                inclusion_tree[('script', frameId, resourceUrl)] = inclusion_tree_node
+                inclusion_tree[('script', frameId, resourceUrl)
+                               ] = inclusion_tree_node
 
             initiator_script_key = ('script', initiator_script_id)
 
             if initiator_script_id is not None and initiator_script_key in inclusion_tree:
-                inclusion_tree[initiator_script_key]['children'].append(inclusion_tree_node)
+                inclusion_tree[initiator_script_key]['children'].append(
+                    inclusion_tree_node)
             else:
                 resource_doc_key = ('document', frameId, loaderId)
 
                 if resource_doc_key in inclusion_tree:
-                    inclusion_tree[resource_doc_key]['children'].append(inclusion_tree_node)
+                    inclusion_tree[resource_doc_key]['children'].append(
+                        inclusion_tree_node)
 
         del resource_requests[requestId]
+
 
 def handle_frame(method, params):
     global root_doc
@@ -151,14 +163,15 @@ def handle_frame(method, params):
             frames[frameId] = {}
 
         if 'stack' in params:
-            frames[frameId]['initiatorScriptId'] = get_scriptid_from_stack_trace(params['stack'])
+            frames[frameId]['initiatorScriptId'] = get_scriptid_from_stack_trace(
+                params['stack'])
     elif method == 'Page.frameNavigated':
         frameId = params['frame']['id']
         parentFrameId = params['frame']['parentId'] if 'parentId' in params['frame'] else None
         loaderId = params['frame']['loaderId']
         url = params['frame']['url'].strip()
 
-        #if not url.strip().lower().startswith('http:') and not url.strip().lower().startswith('https:'):
+        # if not url.strip().lower().startswith('http:') and not url.strip().lower().startswith('https:'):
         #    return
 
         if frameId not in frames:
@@ -180,10 +193,13 @@ def handle_frame(method, params):
             frame_loaders[frameId] = loaderId
 
         if 'initiatorScriptId' in frames[frameId]:
-            inclusion_tree[('script', frames[frameId]['initiatorScriptId'])]['children'].append(inclusion_tree[frame_key])
+            inclusion_tree[('script', frames[frameId]['initiatorScriptId'])
+                           ]['children'].append(inclusion_tree[frame_key])
         elif parentFrameId is not None:
-            parent_frame_key = ('document', parentFrameId, frames[parentFrameId]['loaderId'])
-            inclusion_tree[parent_frame_key]['children'].append(inclusion_tree[frame_key])
+            parent_frame_key = ('document', parentFrameId,
+                                frames[parentFrameId]['loaderId'])
+            inclusion_tree[parent_frame_key]['children'].append(
+                inclusion_tree[frame_key])
         elif root_doc is None:
             root_doc = frame_key
 
@@ -204,7 +220,9 @@ def handle_frame(method, params):
         frames[frameId]['executionContextId'] = executionContextId
 
         if 'loaderId' in frames[frameId]:
-            inclusion_tree[('document', frameId, executionContextId)] = inclusion_tree[('document', frameId, frames[frameId]['loaderId'])]
+            inclusion_tree[('document', frameId, executionContextId)] = inclusion_tree[(
+                'document', frameId, frames[frameId]['loaderId'])]
+
 
 def handle_script(method, params):
     scriptId = params['scriptId']
@@ -230,11 +248,13 @@ def handle_script(method, params):
 
         if 'stack' in params:
             initiatorScriptId = get_scriptid_from_stack_trace(params['stack'])
-            inclusion_tree[('script', initiatorScriptId)]['children'].append(inclusion_tree[('script', scriptId)])
+            inclusion_tree[('script', initiatorScriptId)]['children'].append(
+                inclusion_tree[('script', scriptId)])
         else:
             if frameId in frames and 'loaderId' in frames[frameId]:
-                inclusion_tree[('document', frameId, frames[frameId]['loaderId'])]['children'].append(\
-                                        inclusion_tree[('script', scriptId)])
+                inclusion_tree[('document', frameId, frames[frameId]['loaderId'])]['children'].append(
+                    inclusion_tree[('script', scriptId)])
+
 
 def handle_websocket(method, websocket):
     requestId = websocket['requestId']
@@ -259,10 +279,12 @@ def handle_websocket(method, websocket):
            'type' in websocket['initiator'] and \
            websocket['initiator']['type'].strip().lower() == 'script' and \
            'stack' in websocket['initiator']:
-           websockets[requestId]['scriptId'] = get_scriptid_from_stack_trace(websocket['initiator']['stack'])
+            websockets[requestId]['scriptId'] = get_scriptid_from_stack_trace(
+                websocket['initiator']['stack'])
 
         if ('script', websockets[requestId]['scriptId']) in inclusion_tree:
-            inclusion_tree[('script', websockets[requestId]['scriptId'])]['children'].append(new_node)
+            inclusion_tree[('script', websockets[requestId]
+                            ['scriptId'])]['children'].append(new_node)
         else:
             inclusion_tree[root_doc]['children'].append(new_node)
 
@@ -277,7 +299,8 @@ def handle_websocket(method, websocket):
     elif method == 'Network.webSocketHandshakeResponseReceived':
         websockets[requestId]['node']['headers'][-1]['response'] = websocket['response']['headers']
         websockets[requestId]['node']['headers'][-1]['status'] = \
-                (str(websocket['response']['status']) + ' ' + websocket['response']['statusText']).strip()
+            (str(websocket['response']['status']) + ' ' +
+             websocket['response']['statusText']).strip()
     elif method in ['Network.webSocketFrameSent', 'Network.webSocketFrameReceived']:
         websockets[requestId]['node']['data'].append({
             'type': 'send' if method == 'Network.webSocketFrameSent' else 'receive',
@@ -288,8 +311,9 @@ def handle_websocket(method, websocket):
     elif method == 'Network.webSocketClosed':
         if websockets[requestId]['wallTime']:
             websockets[requestId]['node']['closeTimestamp'] = websockets[requestId]['wallTime'] + \
-                                                              websocket['timestamp'] - \
-                                                              websockets[requestId]['timestamp']
+                websocket['timestamp'] - \
+                websockets[requestId]['timestamp']
+
 
 def handle_console(method, params):
     if 'args' in params and len(params['args']) > 0 and \
@@ -298,11 +322,12 @@ def handle_console(method, params):
         msg_content = params['args'][0]['value'].strip()
 
         if msg_content.startswith('sajjad_links_') or \
-            msg_content.startswith('sajjad_styles_') or \
-            msg_content.startswith('sajjad_doctype_'):
+                msg_content.startswith('sajjad_styles_') or \
+                msg_content.startswith('sajjad_doctype_'):
             return
         elif msg_content.startswith('sajjad_adblockplus_'):
-            message = json.loads(msg_content.replace('sajjad_adblockplus_', ''))
+            message = json.loads(
+                msg_content.replace('sajjad_adblockplus_', ''))
 
             location = urlparse.urldefrag(message['location'].strip())[0]
 
@@ -315,7 +340,8 @@ def handle_console(method, params):
                 else:
                     roles[location].add(l)
         else:
-            message = json.loads(params['args'][0]['value'].replace('sajjad_', ''))
+            message = json.loads(
+                params['args'][0]['value'].replace('sajjad_', ''))
 
             message['timestamp'] = params['timestamp'] if 'timestamp' in params else None
 
@@ -337,12 +363,15 @@ def handle_console(method, params):
                 ])
 
                 if ('script', script_id) in inclusion_tree:
-                    inclusion_tree[('script', script_id)]['children'].append(api)
+                    inclusion_tree[('script', script_id)
+                                   ]['children'].append(api)
+
 
 def handle_cookie(method, params):
     if params is not None and 'cookies' in params:
         for coo in params['cookies']:
             cookies.add(json.dumps(coo))
+
 
 def prune_inclusion_tree(inc_tree):
     if 'children' in inc_tree:
@@ -356,6 +385,7 @@ def prune_inclusion_tree(inc_tree):
                 del inc_tree['children'][pos]
             else:
                 pos += 1
+
 
 def get_inclusion_tree(raw_logs):
     global frames
@@ -404,9 +434,9 @@ def get_inclusion_tree(raw_logs):
     for entry in data:
         event = {}
         for m in entry:
-          event['method'] = m
-          event['params'] = entry[m]
-        try: 
+            event['method'] = m
+            event['params'] = entry[m]
+        try:
             print event['method'] in handlers, event['method']
             if event['method'] in handlers:
                 handlers[event['method']](event['method'], event['params'])
@@ -423,6 +453,7 @@ def get_inclusion_tree(raw_logs):
             print >> sys.stderr, traceback.format_exc()
 
     return inclusions
+
 
 if __name__ == '__main__':
     try:

@@ -22,20 +22,21 @@ def string_edit_distance(s1, s2):
 
     distances = range(len(s1) + 1)
     for i2, c2 in enumerate(s2):
-        distances_ = [i2+1]
+        distances_ = [i2 + 1]
         for i1, c1 in enumerate(s1):
             if c1 == c2:
                 distances_.append(distances[i1])
             else:
                 distances_.append(
-                    1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+                    1 + min((distances[i1], distances[i1 + 1], distances_[-1]))
+                )
         distances = distances_
     return distances[-1]
 
 
 def farthest_path(s1, s2):
-    dir1 = s1.split('/')
-    dir2 = s2.split('/')
+    dir1 = s1.split("/")
+    dir2 = s2.split("/")
 
     if len(dir1) > len(dir2):
         dir1, dir2 = dir2, dir1
@@ -57,14 +58,14 @@ def get_var_paths(args):
     for d in destinations:
         urlMap[d] = parseURL(d)
 
-    closest_path = ''
+    closest_path = ""
     closest_distance = 1000000
-    farther_path = ''
+    farther_path = ""
     farthest_distance = 0
 
     for d in urlMap:
         if d == source:
-          continue
+            continue
         cd = string_edit_distance(source, d)
         if cd < closest_distance:
             closest_distance = cd
@@ -83,7 +84,7 @@ def get_var_paths(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('source', help='source path')
-    parser.add_argument('destFile', help='file containing destination paths')
+    parser.add_argument("source", help="source path")
+    parser.add_argument("destFile", help="file containing destination paths")
     args = parser.parse_args()
     get_var_paths(args)

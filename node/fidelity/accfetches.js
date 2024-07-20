@@ -7,29 +7,29 @@ const fs = require("fs");
 const program = require("commander");
 
 program
-  .option(
-    "-p, --payloads <payloads>",
-    " file containing payloads which contain the generated template"
-  )
-  .parse(process.argv);
+    .option(
+        "-p, --payloads <payloads>",
+        " file containing payloads which contain the generated template"
+    )
+    .parse(process.argv);
 
-var scanPayloads = function () {
-  var pages = fs.readFileSync(program.payloads, "utf-8").split("\n");
-  for (var p of pages) {
-    if (p.length == 0) continue;
-    try {
-      var payload = fs.readFileSync(p, "utf-8");
-      var re = /fetchVia(dom|xhr)\([^\s)]+\)/gim;
-      var matches = payload.match(re);
-      if (matches) {
-        for (var m of matches) {
-          console.log(m);
+var scanPayloads = function() {
+    var pages = fs.readFileSync(program.payloads, "utf-8").split("\n");
+    for (var p of pages) {
+        if (p.length == 0) continue;
+        try {
+            var payload = fs.readFileSync(p, "utf-8");
+            var re = /fetchVia(dom|xhr)\([^\s)]+\)/gim;
+            var matches = payload.match(re);
+            if (matches) {
+                for (var m of matches) {
+                    console.log(m);
+                }
+            }
+        } catch (e) {
+            console.log(e);
         }
-      }
-    } catch (e) {
-      console.log(e);
     }
-  }
 };
 
 scanPayloads();

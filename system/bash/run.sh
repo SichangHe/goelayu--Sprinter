@@ -58,15 +58,15 @@ infile=$urldir/infile.txt
 
 cat $sites_file > $infile
 
-create_url_file(){
+create_url_file() {
     cat $1 > tmp
     infile=tmp
     urlfile=$2
     rm $urlfile
     for i in $(seq 1 $PAGESPERSITE); do
         while read site; do
-            p=`sed -n ${i}p $pages_dst/${site}.txt`;
-            [ ! -z "$p" ] && echo $p  >> $urlfile
+            p=$(sed -n ${i}p $pages_dst/${site}.txt)
+            [ ! -z "$p" ] && echo $p >> $urlfile
         done < $infile
     done
     rm tmp
@@ -75,14 +75,14 @@ create_url_file(){
     shuf $urlfile | sponge $urlfile
 }
 
-create_url_dist(){
+create_url_dist() {
     pagesfile=$1
     ncrawlers=$2
     nscripts=$((ncrawlers / PERSCRIPTCRAWLERS))
-    NPAGES=`cat $pagesfile | wc -l`
+    NPAGES=$(cat $pagesfile | wc -l)
     disturldir=$urldir/dist
     mkdir -p $disturldir
-    
+
     pageperscript=$((NPAGES / nscripts))
     t=$pageperscript
     h=0
@@ -90,28 +90,30 @@ create_url_dist(){
         h=$((h + pageperscript))
         urlfile=$disturldir/urls-$i.txt
         rm -f $urlfile
-        create_url_file <(cat $pagesfile | head -n $h | tail -n $t) $urlfile;
+        create_url_file <(cat $pagesfile | head -n $h | tail -n $t) $urlfile
         #  | while read site; do
         #     cat $pages_dst/${site}.txt | head -n $PAGESPERSITE >> $urlfile
         # done
     done
 }
 
-crawl_rate(){
-    t=0;
-    sleep 1; # wait for the first crawl to start
+crawl_rate() {
+    t=0
+    sleep 1 # wait for the first crawl to start
     while true; do
-        t=$((t + 1));
-        echo -n $t " "; cat $logdir/*-*.log  | grep "Page load time" | wc -l ; sleep 1;
+        t=$((t + 1))
+        echo -n $t " "
+        cat $logdir/*-*.log | grep "Page load time" | wc -l
+        sleep 1
     done > $logdir/crawl_rate.log
 }
 
 if [[ "$COPY" == "1" ]]; then
     echo "Copying wprdata"
     while read line; do
-        site=`echo $line | cut -d' ' -f1`
-        page=`echo $line | cut -d' ' -f2 | sanitize`
-        cp $wprpath/$site/$page/data.wprgo $WPRDATA/${page}.wprgo 2>/dev/null &
+        site=$(echo $line | cut -d' ' -f1)
+        page=$(echo $line | cut -d' ' -f2 | sanitize)
+        cp $wprpath/$site/$page/data.wprgo $WPRDATA/${page}.wprgo 2> /dev/null &
     done < $urlfile
     wait
     echo "Done copying wprdata"
@@ -123,33 +125,35 @@ fi
 sysscript=../../bash/profiling/sys-usage-track.sh
 
 $sysscript $rundir/sys &
-sysupid=$!;
-
+sysupid=$!
 
 # copy the static analysis tool to tmpfs
 cp -r /vault-swift/goelayu/balanced-crawler/node/program_analysis/ /run/user/99542426/goelayu/panode/
 
 echo "Starting the az server"
 # start the az server
-GOROOT="/w/goelayu/uluyol-sigcomm/go";
+GOROOT="/w/goelayu/uluyol-sigcomm/go"
 AZDIR=/vault-swift/goelayu/balanced-crawler/system/go/wpr
-[ -z "$AZPORT" ] && AZPORT=`shuf -i 8000-16000 -n 1` && echo "AZPORT: $AZPORT" && KILLAZ=1
-(cd $AZDIR; { time GOGC=off GOROOT=${GOROOT} go run src/analyzer/main.go src/analyzer/rewriter.go src/analyzer/genjs.go --port $AZPORT ; } &> $logdir/az.log ) &
+[ -z "$AZPORT" ] && AZPORT=$(shuf -i 8000-16000 -n 1) && echo "AZPORT: $AZPORT" && KILLAZ=1
+(
+    cd $AZDIR
+    { time GOGC=off GOROOT=${GOROOT} go run src/analyzer/main.go src/analyzer/rewriter.go src/analyzer/genjs.go --port $AZPORT; } &> $logdir/az.log
+) &
 azpid=$!
 
-create_crawl_instances_baseline(){
+create_crawl_instances_baseline() {
     ncrawlers=$1
     nscripts=$((ncrawlers / PERSCRIPTCRAWLERS))
     echo "Creating $nscripts scripts"
     first=0
     for i in $(seq 1 $nscripts); do
-        totalurls=`cat $urlfile | wc -l`;
-        scripturls=`echo $totalurls / $nscripts | bc`;
-        first=$((first + scripturls));
+        totalurls=$(cat $urlfile | wc -l)
+        scripturls=$(echo $totalurls / $nscripts | bc)
+        first=$((first + scripturls))
         echo "Running cmd: node $CHROMESCRIPT -u <(cat $urlfile | awk '{print \$2}' | head -n $first | tail -n $scripturls)\
         -o $rundir --proxy $WPRDATA $args --azaddr "localhost:$AZPORT" -c $PERSCRIPTCRAWLERS"
         { time node $CHROMESCRIPT -u <(cat $urlfile | awk '{print $1}' | head -n $first | tail -n $scripturls) -o $rundir \
-        --proxy $WPRDATA $args --azaddr "localhost:$AZPORT" -c $PERSCRIPTCRAWLERS ; } &> $logdir/$LOGFILE-$i.log &
+            --proxy $WPRDATA $args --azaddr "localhost:$AZPORT" -c $PERSCRIPTCRAWLERS; } &> $logdir/$LOGFILE-$i.log &
         pids[${i}]=$!
     done
     echo "Waiting for all scripts to finish"
@@ -159,15 +163,15 @@ create_crawl_instances_baseline(){
     echo "All scripts finished"
 }
 
-create_crawl_instances_opt(){
+create_crawl_instances_opt() {
     ncrawlers=$1
     nscripts=$((ncrawlers / PERSCRIPTCRAWLERS))
     for i in $(seq 1 $nscripts); do
         [ ! -f $urldir/dist/urls-$i.txt ] && echo "File $urldir/dist/urls-$i.txt does not exist" && exit 1
-        
+
         urlfile=$urldir/dist/urls-$i.txt
         echo "Running cmd: node $CHROMESCRIPT -u $urlfile -o $rundir --proxy $WPRDATA $args --azaddr "localhost:$AZPORT" -c $PERSCRIPTCRAWLERS &> $logdir/$LOGFILE-$i.log "
-        { time node $CHROMESCRIPT -u $urlfile -o $rundir --id $((i-1)) --proxy $WPRDATA $args --azaddr "localhost:$AZPORT" -c $PERSCRIPTCRAWLERS ; } &> $logdir/$LOGFILE-$i.log &
+        { time node $CHROMESCRIPT -u $urlfile -o $rundir --id $((i - 1)) --proxy $WPRDATA $args --azaddr "localhost:$AZPORT" -c $PERSCRIPTCRAWLERS; } &> $logdir/$LOGFILE-$i.log &
         pids[${i}]=$!
     done
     echo "Waiting for all scripts to finish"
@@ -188,7 +192,7 @@ if [[ "$RUN" == "baseline" ]]; then
     crawl_rate &
     crawlratepid=$!
     create_crawl_instances_baseline $6
-    elif [[ "$RUN" == "opt" ]]; then
+elif [[ "$RUN" == "opt" ]]; then
     if [[ "$URLS" == 1 ]]; then
         echo "Creating the optimized url file"
         create_url_dist $infile $6
@@ -203,17 +207,15 @@ else
     echo "Invalid run type"
 fi
 
-
 # kill the resource usage scripts
 echo "Sending ctrl-c to the monitoring tools" $sysupid
-kill -SIGUSR1 $sysupid;
+kill -SIGUSR1 $sysupid
 # kill all usage scripts
 ps aux | grep sys-usage-track | grep -v grep | awk '{print $2}' | xargs kill -9
 
 # kill the az server
 # [ ! -z "$KILLAZ" ] && echo "Killing the az server" && ps aux | grep $AZPORT | grep -v grep | awk '{print $2}' | xargs kill -SIGINT
 
-
-kill $crawlratepid;
+kill $crawlratepid
 # wait a couple seconds for the az server to finish
 sleep 2

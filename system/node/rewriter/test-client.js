@@ -1,11 +1,11 @@
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 const packageDefinition = protoLoader.loadSync("./rewriter.proto", {
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true,
+    keepCase: true,
+    longs: String,
+    enums: String,
+    defaults: true,
+    oneofs: true,
 });
 const fs = require("fs");
 
@@ -30,23 +30,23 @@ var startTime = Date.now();
 // );
 
 var client = new rewriter.Rewriter(
-  "localhost:1234",
-  grpc.credentials.createInsecure()
+    "localhost:1234",
+    grpc.credentials.createInsecure()
 );
 
 var starttimes = [];
 
 for (var i = 1; i <= 1; i++) {
-  starttimes.push(Date.now());
-  let iter = i;
-  console.log(`sending request ${iter}...`);
-  client.test({ content: "test" }, function (err, response) {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log(
-        `end time of ${iter}: ${Date.now() - starttimes[iter - 1]} ms`
-      );
-    }
-  });
+    starttimes.push(Date.now());
+    let iter = i;
+    console.log(`sending request ${iter}...`);
+    client.test({ content: "test" }, function(err, response) {
+        if (err) {
+            console.log(err);
+        } else {
+            console.log(
+                `end time of ${iter}: ${Date.now() - starttimes[iter - 1]} ms`
+            );
+        }
+    });
 }

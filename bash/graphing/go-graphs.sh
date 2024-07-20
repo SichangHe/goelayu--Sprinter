@@ -25,8 +25,7 @@ fi
 # get real paths of each argument
 input=$(realpath "$1")
 output=$(realpath "$2")
-scriptdir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
+scriptdir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
 # create the network dag using node script
 
@@ -44,6 +43,3 @@ go run dag.go -input1 $scriptdir/tmp -input2 $scriptdir/tmp -output $output/dag.
 
 cd $output
 sudo python3 -m http.server 8000
-
-
-

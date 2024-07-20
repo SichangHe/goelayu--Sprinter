@@ -4,48 +4,47 @@ package proto;
 
 option go_package = "wpr/src/analyzer/proto";
 
-
 service Analyzer {
-    rpc Analyze (AzRequest) returns (AzResponse) {}
-    rpc Storesignature (Pageaccess) returns (StoresigResponse) {}
+    rpc Analyze(AzRequest) returns (AzResponse) { }
+    rpc Storesignature(Pageaccess) returns (StoresigResponse) { }
 }
 
 message AzRequest {
-  string name = 1;
-  string body = 2;
-  string type = 3;
-  string encoding = 4;
-  bool caching = 5;
-  bool static = 6;
+    string name = 1;
+    string body = 2;
+    string type = 3;
+    string encoding = 4;
+    bool caching = 5;
+    bool static = 6;
 }
 
 message AzResponse {
-  string body = 1;
+    string body = 1;
 }
 
 message Lineaccess {
-  string type = 1;
-  string root = 2;
-  string key = 3;
-  string value = 4;
+    string type = 1;
+    string root = 2;
+    string key = 3;
+    string value = 4;
 }
 
 message Fetches {
-  string url = 1;
-  string type = 2; 
+    string url = 1;
+    string type = 2;
 }
 
 message Fileaccess {
-  string name = 1;
-  repeated Lineaccess lines = 2;
-  repeated Fetches fetches = 3;
+    string name = 1;
+    repeated Lineaccess lines = 2;
+    repeated Fetches fetches = 3;
 }
 
 message Pageaccess {
-  string name = 1;
-  repeated Fileaccess files = 2;
+    string name = 1;
+    repeated Fileaccess files = 2;
 }
 
 message StoresigResponse {
-  int64 id = 1;
+    int64 id = 1;
 }

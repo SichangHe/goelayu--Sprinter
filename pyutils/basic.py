@@ -12,18 +12,22 @@ return splash:har()
 """
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('url', help='URL to render')
-argparser.add_argument('output', help='Output file')
+argparser.add_argument("url", help="URL to render")
+argparser.add_argument("output", help="Output file")
 args = argparser.parse_args()
 
 
-resp = requests.post('http://localhost:8050/run', json={
-    'lua_source': script,
-    'filters':'combined',
-    'url': args.url,
-})
+resp = requests.post(
+    "http://localhost:8050/run",
+    json={
+        "lua_source": script,
+        "filters": "combined",
+        "url": args.url,
+    },
+)
 
 data = resp.content
 
-with open(args.output,"wb") as f:
+with open(args.output, "wb") as f:
+    f.write(data)
     f.write(data)
