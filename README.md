@@ -3,11 +3,18 @@
 > [!NOTE]\
 > This research project is under-documented, so I add my notes here.
 
-## Entry point
+## Top-level logic
 
-`./system/bash/hybrid-run.sh`.
+Start at `./system/bash/hybrid-run.sh`.
 
-- `DYNRUN` = `./system/bash/run.sh`
+1. Dynamic crawler `DYNRUN` = `./system/bash/run.sh`.
+    - Analyzer server (`az`) `./system/go/wpr/src/analyzer/main.go`.
+        gRPC server.
+        - `./system/go/wpr/src/analyzer/genjs.go` **alters the JavaScript for
+            tracking**.
+    - Headless browser `CHROMESCRIPT` =
+        `./system/node/chrome-distributed.js`. gRPC client.
+1. Static crawler `src/static/crawler*`.
 
 Below is the original README.
 
